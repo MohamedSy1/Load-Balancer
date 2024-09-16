@@ -5,7 +5,7 @@ const app = express();
 
 // Backend servers
 const servers = require("../config.json").servers
-
+const setServers = new Set(servers)
 // Current index of backend server
 let currentIndex = 0;
 
@@ -21,14 +21,14 @@ function getNextServer() {
 
 // Health check
 async function healthCheck() {
-  
   // Loop through servers and health check each one
   for (let i = 0; i < servers.length; i++) {
     const result = await axios.get(servers[i] + '/health');
 
     // If unhealthy, remove from servers list
     if (result.status !== 200) {
-      servers.splice(i, 1); 
+      servers.splice(i, 1);
+      setServers.delete(servers[i]) 
       i--;
     }
   }
@@ -38,8 +38,9 @@ async function healthCheck() {
     let serverAdded = false;
     for (let i = 0; i < servers.length; i++) {
       const result = await axios.get(servers[i] + '/health', { timeout: 5000 });
-      if (result.status === 200 && !servers.includes(servers[i])) {
+      if (result.status === 200 && !setServers.has(servers[i])) {
         servers.push(servers[i]);
+        setServers.add(servers[i])
         serverAdded = true;
       }
     }

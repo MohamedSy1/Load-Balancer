@@ -4,18 +4,18 @@ const axios = require('axios');
 const app = express();
 
 // Backend servers
-const servers = require("../config.json")
+const servers = require("../config.json").servers
 
 // Current index of backend server
 let currentIndex = 0;
 
 // Function for getting next backend server
 function getNextServer() {
-  currentIndex++;
-  if (currentIndex >= servers.length) {
-    currentIndex = 0;
+  if (servers.length === 0) {
+    throw new Error('No backend servers available')
   }
 
+  currentIndex = (currentIndex + 1) % servers.length;
   return servers[currentIndex];
 }
 
@@ -24,7 +24,6 @@ async function healthCheck() {
   
   // Loop through servers and health check each one
   for (let i = 0; i < servers.length; i++) {
-
     const result = await axios.get(servers[i] + '/health');
 
     // If unhealthy, remove from servers list
@@ -38,7 +37,7 @@ async function healthCheck() {
   setInterval(async () => {
     let serverAdded = false;
     for (let i = 0; i < servers.length; i++) {
-      const result = await axios.get(servers[i] + '/health');
+      const result = await axios.get(servers[i] + '/health', { timeout: 5000 });
       if (result.status === 200 && !servers.includes(servers[i])) {
         servers.push(servers[i]);
         serverAdded = true;
@@ -52,7 +51,6 @@ async function healthCheck() {
 
 }
 
-// Run health check
 healthCheck();
 
 // Log requests
@@ -66,16 +64,17 @@ app.get('*', async (req, res) => {
 
   // Get next backend server
   const server = getNextServer();
-
+  console.log(server)
   // Forward request
   try {
     const result = await axios.get(server + req.url);
     res.status(result.status).send(result.data);
+
   } catch (err) {
     res.status(500).send('Failed to connect to backend');
   }
 });
 
 app.listen(8080, () => {
-  console.log('Load balancer running on port 80');
+  console.log('Load balancer running on port 8080');
 });
